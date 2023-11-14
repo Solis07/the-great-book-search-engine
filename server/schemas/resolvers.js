@@ -6,8 +6,9 @@ const resolvers = {
   Query: {
     me: async (parent, args, context) => {
       if (context.user) {
-        const userData = await User.findOne({ _id: context.user.id })
-          .select('-__v -password');
+        const userData = await User.findOne({ _id: context.user.id }).select(
+          "-__v -password"
+        );
         return userData;
       }
 
@@ -39,15 +40,30 @@ const resolvers = {
       return { token, user };
     },
 
-    saveBook: {
-
+    saveBook: async (parent, { input }, { user }) => {
+      if (user) {
+        const updatedUser = await User.findByIdAndUpdate(
+          { _id: user._id },
+          { $addToSet: { savedBooks: input } },
+          { new: true, runValidators: true }
+        );
+        return updatedUser;
+      }
+      throw new AuthenticationError("Must be logged in first");
     },
 
-    removeBook: {
-
-    },
-
-  },
+    removeBook: async (parent, { bookId }, { user }) => {
+      if (user) {
+        const updatedUser = await User.findOneAndUpdate(
+          { _id: user._id },
+          { $pull: { savedBooks: { bookId: bookId } } },
+          { new: true, runValidators: true }
+        );
+        return updatedUser;
+      }
+      throw new AuthenticationError("Must be logged in first");
+    }
+  }
 };
 
 module.exports = resolvers;
