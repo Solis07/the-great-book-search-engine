@@ -8,19 +8,25 @@ import { useMutation } from "@apollo/client";
 import { SAVE_BOOK } from "../utils/mutations";
 
 const SearchBooks = () => {
-  const [saveBook] = useMutation(SAVE_BOOK);
   // create state for holding returned google api data
   const [searchedBooks, setSearchedBooks] = useState([]);
+
   // create state for holding our search field data
   const [searchInput, setSearchInput] = useState("");
 
   // create state to hold saved bookId values
   const [savedBookIds, setSavedBookIds] = useState(getSavedBookIds());
 
+  const [error, setError] = useState(null);
+
+  const [savedBookMutation, { mutationError }] = useMutation(SAVE_BOOK, {
+    refetchQueries: [{ query: GET_ME }],
+  });
+
   // set up useEffect hook to save `savedBookIds` list to localStorage on component unmount
   useEffect(() => {
     return () => saveBookIds(savedBookIds);
-  });
+  }, [savedBookIds]);
 
   // create method to search for books and set state on form submit
   const handleFormSubmit = async (event) => {
@@ -66,30 +72,27 @@ const SearchBooks = () => {
       return false;
     }
 
-    try {
-      const response = await saveBook({
-        variable: {
-          input: {
-            authors: bookToSave.authors,
-            description: bookToSave.description,
-            title: bookToSave.title,
-            bookId: bookToSave.bookId,
-            image: bookToSave.image,
-            link: bookToSave.link,
-          },
-        },
-      });
+       try {
+            const response = await saveBookMutation({
+                variables: { input: { ...bookToSave }},
+                context: {
+                    headers: {
+                        Authorization: token ? `Bearer ${token}` : '',
+                    },
+                },
+            });
 
-      if (!response.ok) {
-        throw new Error("something went wrong!");
-      }
+            if (response.errors) {
+                throw new Error(response.errors[0].message);
+            }
 
-      // if book successfully saves to user's account, save book id to state
-      setSavedBookIds([...savedBookIds, bookToSave.bookId]);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+            // If clothes successfully saves to user's account, save clothes id to state:
+            setSavedClothesIds([...savedBookIds, bookToSave.bookId]);
+        } catch (err) {
+            console.error(err);
+            setError(err.message);
+        }
+    };
 
   return (
     <>
